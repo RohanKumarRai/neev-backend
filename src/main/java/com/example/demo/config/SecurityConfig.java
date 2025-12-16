@@ -22,6 +22,7 @@ public class SecurityConfig {
         this.jwtAuthFilter = jwtAuthFilter;
     }
 
+    // ✅ SAFE & CORRECT CORS CONFIG (LOCAL + VERCEL)
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
@@ -29,21 +30,24 @@ public class SecurityConfig {
 
         config.setAllowedOrigins(List.of(
                 "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:3000"
+                "https://neev-frontend.vercel.app"
         ));
 
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedMethods(List.of(
+                "GET", "POST", "PUT", "DELETE", "OPTIONS"
+        ));
+
+        config.setAllowedHeaders(List.of("*"));
         config.setAllowCredentials(true);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        UrlBasedCorsConfigurationSource source =
+                new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
 
         return source;
     }
 
-    // 🔐 FINAL SECURITY FILTER CHAIN (JWT FIXED)
+    // 🔐 FINAL SECURITY FILTER CHAIN (JWT)
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 
@@ -51,8 +55,10 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // 🚨 IMPORTANT FIX
-                .securityContext(security -> security.requireExplicitSave(false))
+                // ✅ IMPORTANT for JWT
+                .securityContext(security ->
+                        security.requireExplicitSave(false)
+                )
 
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
@@ -60,24 +66,26 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        // PUBLIC
+                        // 🌍 PUBLIC APIs
                         .requestMatchers(HttpMethod.POST, "/api/users").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/users/login").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/h2-console/**").permitAll()
 
-                        // AUTHENTICATED (JWT)
+                        // 🔐 JWT PROTECTED APIs
                         .requestMatchers("/api/workers/**").authenticated()
                         .requestMatchers("/api/jobs/**").authenticated()
 
                         .anyRequest().authenticated()
                 )
 
-                // 🔐 JWT FILTER
+                // 🔑 JWT FILTER
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // H2 console
-                .headers(headers -> headers.frameOptions(frame -> frame.disable()));
+                // 🧪 H2 console support
+                .headers(headers ->
+                        headers.frameOptions(frame -> frame.disable())
+                );
 
         return http.build();
     }
