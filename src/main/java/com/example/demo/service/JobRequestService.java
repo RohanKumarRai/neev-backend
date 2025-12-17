@@ -1,12 +1,14 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.CreateJobRequest;
+import com.example.demo.dto.JobApplicationResponse; // ✅ NEW
 import com.example.demo.model.*;
 import com.example.demo.repository.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors; // ✅ NEW
 
 @Service
 public class JobRequestService {
@@ -29,7 +31,9 @@ public class JobRequestService {
         this.notificationService = notificationService;
     }
 
+    // =====================================================
     // ✅ EMPLOYER CREATES JOB
+    // =====================================================
     public JobRequest createJob(CreateJobRequest req, String employerEmail) {
 
         AppUser employer = appUserRepo.findByEmail(employerEmail)
@@ -57,7 +61,9 @@ public class JobRequestService {
         return repo.save(job);
     }
 
+    // =====================================================
     // ✅ EMPLOYER — VIEW OWN JOBS
+    // =====================================================
     public List<JobRequest> getJobsByEmployer(String employerEmail) {
 
         AppUser employer = appUserRepo.findByEmail(employerEmail)
@@ -66,12 +72,16 @@ public class JobRequestService {
         return repo.findByUserId(employer.getId());
     }
 
+    // =====================================================
     // ✅ VIEW ALL JOBS
+    // =====================================================
     public List<JobRequest> listAll() {
         return repo.findAll();
     }
 
+    // =====================================================
     // ✅ VIEW SINGLE JOB
+    // =====================================================
     public Optional<JobRequest> getById(Long id) {
         return repo.findById(id);
     }
@@ -128,9 +138,9 @@ public class JobRequestService {
     }
 
     // =====================================================
-    // ✅ EMPLOYER — VIEW APPLICATIONS FOR OWN JOB
+    // ✅ EMPLOYER — VIEW APPLICATIONS FOR OWN JOB (UPDATED)
     // =====================================================
-    public List<JobApplication> getApplicationsForJob(Long jobId, String employerEmail) {
+    public List<JobApplicationResponse> getApplicationsForJob(Long jobId, String employerEmail) {
 
         JobRequest job = repo.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("Job not found"));
@@ -142,7 +152,14 @@ public class JobRequestService {
             throw new SecurityException("Not your job");
         }
 
-        return appRepo.findByJobId(jobId);
+        return appRepo.findByJobId(jobId)
+                .stream()
+                .map(app -> {
+                    WorkerProfile profile = workerRepo.findById(app.getWorkerId())
+                            .orElseThrow(() -> new IllegalArgumentException("Worker profile not found"));
+                    return new JobApplicationResponse(app, profile);
+                })
+                .collect(Collectors.toList());
     }
 
     // =====================================================

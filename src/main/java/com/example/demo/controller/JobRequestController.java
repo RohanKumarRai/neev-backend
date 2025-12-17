@@ -7,6 +7,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
+import com.example.demo.dto.JobApplicationResponse;
+
 
 import java.util.List;
 
@@ -58,7 +60,8 @@ public class JobRequestController {
     // ✅ 5. EMPLOYER — VIEW APPLICATIONS FOR OWN JOB
     // =====================================================
     @GetMapping("/{id}/applications")
-    public ResponseEntity<?> getApplications(@PathVariable Long id) {
+    public ResponseEntity<List<JobApplicationResponse>> getApplications(@PathVariable Long id) {
+
 
         String email = SecurityContextHolder
                 .getContext()
