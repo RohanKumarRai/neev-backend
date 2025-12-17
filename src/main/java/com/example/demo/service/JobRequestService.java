@@ -191,4 +191,35 @@ public class JobRequestService {
 
         appRepo.save(app);
     }
+    public void completeJob(Long jobId, String employerEmail) {
+
+        JobRequest job = repo.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Job not found"));
+
+        AppUser employer = appUserRepo.findByEmail(employerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Employer not found"));
+
+        if (!job.getUserId().equals(employer.getId())) {
+            throw new SecurityException("Not authorized");
+        }
+
+        if (job.getStatus() != JobRequest.Status.ASSIGNED) {
+            throw new IllegalStateException("Job is not assigned");
+        }
+
+        job.setStatus(JobRequest.Status.COMPLETED);
+        repo.save(job);
+    }
+    public List<JobRequest> getJobsForWorker(String workerEmail) {
+
+        AppUser user = appUserRepo.findByEmail(workerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        WorkerProfile profile = workerRepo.findByUserId(user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Worker profile not found"));
+
+        return repo.findByAssignedWorkerId(profile.getId());
+    }
+
+
 }

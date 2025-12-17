@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface JobRequestRepository extends JpaRepository<JobRequest, Long> {
     List<JobRequest> findByUserId(Long userId);
+    List<JobRequest> findByAssignedWorkerId(Long workerId);
+
 }

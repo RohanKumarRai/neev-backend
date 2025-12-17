@@ -72,6 +72,8 @@ public class JobRequestController {
         return ResponseEntity.ok(service.getApplicationsForJob(id, email));
     }
 
+
+
     // =====================================================
     // ✅ 6. WORKER — APPLY TO JOB
     // =====================================================
@@ -125,4 +127,33 @@ public class JobRequestController {
         service.decideApplication(appId, false, email);
         return ResponseEntity.ok("Application rejected");
     }
+
+    // completes job
+    @PostMapping("/{id}/complete")
+    public ResponseEntity<?> completeJob(@PathVariable Long id) {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal()
+                .toString();
+
+        service.completeJob(id, email);
+        return ResponseEntity.ok("Job completed");
+    }
+
+    @GetMapping("/assigned")
+    public ResponseEntity<?> getAssignedJobs() {
+
+        String email = SecurityContextHolder
+                .getContext()
+                .getAuthentication()
+                .getPrincipal()
+                .toString();
+
+        return ResponseEntity.ok(service.getJobsForWorker(email));
+    }
+
+
+
 }
