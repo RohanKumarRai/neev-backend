@@ -216,14 +216,5 @@ public class JobRequestService {
     // =====================================================
     // ✅ WORKER — VIEW ASSIGNED JOBS
     // =====================================================
-    public List<JobRequest> getJobsForWorker(String workerEmail) {
-
-        AppUser user = appUserRepo.findByEmail(workerEmail)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        WorkerProfile profile = workerRepo.findByUserId(user.getId())
-                .orElseThrow(() -> new IllegalArgumentException("Worker profile not found"));
-
-        return repo.findByAssignedWorkerId(profile.getId());
-    }
+  
 }
