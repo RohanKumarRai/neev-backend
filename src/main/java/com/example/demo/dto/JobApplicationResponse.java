@@ -3,6 +3,8 @@ package com.example.demo.dto;
 import com.example.demo.model.JobApplication;
 import com.example.demo.model.WorkerProfile;
 
+import java.time.Instant;
+
 public class JobApplicationResponse {
 
     private Long applicationId;
@@ -27,6 +29,9 @@ public class JobApplicationResponse {
         this.location = profile.getLocation();
         this.experienceYears = profile.getExperienceYears();
         this.dailyRate = profile.getDailyRate();
+    }
+
+    public JobApplicationResponse(Long id, Long jobId, String fullName, String skillCategory, String location, Integer experienceYears, Double dailyRate, String message, JobApplication.Status status, Instant createdAt) {
     }
 
     public Long getApplicationId() { return applicationId; }

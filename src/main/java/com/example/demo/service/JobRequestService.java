@@ -1,14 +1,14 @@
 package com.example.demo.service;
 
 import com.example.demo.dto.CreateJobRequest;
-import com.example.demo.dto.JobApplicationResponse; // ✅ NEW
+import com.example.demo.dto.JobApplicationResponse;
 import com.example.demo.model.*;
 import com.example.demo.repository.*;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors; // ✅ NEW
+import java.util.stream.Collectors;
 
 @Service
 public class JobRequestService {
@@ -29,6 +29,24 @@ public class JobRequestService {
         this.appRepo = appRepo;
         this.appUserRepo = appUserRepo;
         this.notificationService = notificationService;
+    }
+
+    // =====================================================
+    // 🔁 MAPPER: JobApplication → JobApplicationResponse
+    // =====================================================
+    private JobApplicationResponse toResponse(JobApplication app, WorkerProfile profile) {
+        return new JobApplicationResponse(
+                app.getId(),
+                app.getJobId(),
+                profile.getFullName(),
+                profile.getSkillCategory(),
+                profile.getLocation(),
+                profile.getExperienceYears(),
+                profile.getDailyRate(),
+                app.getMessage(),
+                app.getStatus(),
+                app.getCreatedAt()
+        );
     }
 
     // =====================================================
@@ -121,12 +139,11 @@ public class JobRequestService {
 
         // 🔔 Notify Employer
         try {
-            Long ownerUserId = job.getUserId();
             String msg = "New application from \"" + profile.getFullName() +
                     "\" for job: " + job.getTitle();
 
             notificationService.create(
-                    ownerUserId,
+                    job.getUserId(),
                     "JOB_APPLIED",
                     msg,
                     job.getId(),
@@ -138,7 +155,7 @@ public class JobRequestService {
     }
 
     // =====================================================
-    // ✅ EMPLOYER — VIEW APPLICATIONS FOR OWN JOB (UPDATED)
+    // ✅ EMPLOYER — VIEW APPLICATIONS (FIXED)
     // =====================================================
     public List<JobApplicationResponse> getApplicationsForJob(Long jobId, String employerEmail) {
 
@@ -152,14 +169,13 @@ public class JobRequestService {
             throw new SecurityException("Not your job");
         }
 
-        return appRepo.findByJobId(jobId)
-                .stream()
-                .map(app -> {
-                    WorkerProfile profile = workerRepo.findById(app.getWorkerId())
-                            .orElseThrow(() -> new IllegalArgumentException("Worker profile not found"));
-                    return new JobApplicationResponse(app, profile);
-                })
-                .collect(Collectors.toList());
+        List<JobApplication> apps = appRepo.findByJobId(jobId);
+
+        return apps.stream().map(app -> {
+            WorkerProfile profile = workerRepo.findById(app.getWorkerId())
+                    .orElseThrow(() -> new IllegalArgumentException("Worker profile not found"));
+            return toResponse(app, profile);
+        }).toList();
     }
 
     // =====================================================
@@ -191,6 +207,10 @@ public class JobRequestService {
 
         appRepo.save(app);
     }
+
+    // =====================================================
+    // ✅ EMPLOYER — COMPLETE JOB
+    // =====================================================
     public void completeJob(Long jobId, String employerEmail) {
 
         JobRequest job = repo.findById(jobId)
@@ -210,6 +230,10 @@ public class JobRequestService {
         job.setStatus(JobRequest.Status.COMPLETED);
         repo.save(job);
     }
+
+    // =====================================================
+    // ✅ WORKER — VIEW ASSIGNED JOBS
+    // =====================================================
     public List<JobRequest> getJobsForWorker(String workerEmail) {
 
         AppUser user = appUserRepo.findByEmail(workerEmail)
@@ -220,6 +244,4 @@ public class JobRequestService {
 
         return repo.findByAssignedWorkerId(profile.getId());
     }
-
-
 }
