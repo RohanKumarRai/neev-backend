@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class JobRequestService {
@@ -29,24 +28,6 @@ public class JobRequestService {
         this.appRepo = appRepo;
         this.appUserRepo = appUserRepo;
         this.notificationService = notificationService;
-    }
-
-    // =====================================================
-    // 🔁 MAPPER: JobApplication → JobApplicationResponse
-    // =====================================================
-    private JobApplicationResponse toResponse(JobApplication app, WorkerProfile profile) {
-        return new JobApplicationResponse(
-                app.getId(),
-                app.getJobId(),
-                profile.getFullName(),
-                profile.getSkillCategory(),
-                profile.getLocation(),
-                profile.getExperienceYears(),
-                profile.getDailyRate(),
-                app.getMessage(),
-                app.getStatus(),
-                app.getCreatedAt()
-        );
     }
 
     // =====================================================
@@ -155,7 +136,7 @@ public class JobRequestService {
     }
 
     // =====================================================
-    // ✅ EMPLOYER — VIEW APPLICATIONS (FIXED)
+    // ✅ EMPLOYER — VIEW APPLICATIONS (YOUR EXACT STYLE)
     // =====================================================
     public List<JobApplicationResponse> getApplicationsForJob(Long jobId, String employerEmail) {
 
@@ -169,12 +150,13 @@ public class JobRequestService {
             throw new SecurityException("Not your job");
         }
 
-        List<JobApplication> apps = appRepo.findByJobId(jobId);
+        return appRepo.findByJobId(jobId).stream().map(app -> {
 
-        return apps.stream().map(app -> {
             WorkerProfile profile = workerRepo.findById(app.getWorkerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Worker profile not found"));
-            return toResponse(app, profile);
+                    .orElseThrow(() -> new IllegalArgumentException("Worker profile missing"));
+
+            return new JobApplicationResponse(app, profile);
+
         }).toList();
     }
 
