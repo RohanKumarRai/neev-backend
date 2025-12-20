@@ -68,13 +68,13 @@ public class WorkerProfileController {
     }
 
     // =====================================================
-    // ✅ NEW — GET LOGGED-IN WORKER PROFILE (JWT BASED)
+    // ✅ GET LOGGED-IN WORKER PROFILE (JWT SAFE)
     // =====================================================
     @GetMapping("/me")
     public ResponseEntity<?> getMyProfile() {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getPrincipal().toString();
+        String email = auth.getName(); // ✅ FIXED
 
         AppUser user = appUserRepo.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -103,9 +103,9 @@ public class WorkerProfileController {
         }
     }
 
-    /**
-     * Upload audio and/or photo files for a worker profile.
-     */
+    // =====================================================
+    // MEDIA UPLOAD
+    // =====================================================
     @PostMapping("/{id}/media")
     public ResponseEntity<?> uploadMedia(
             @PathVariable Long id,
@@ -144,13 +144,11 @@ public class WorkerProfileController {
         resp.setId(p.getId());
         resp.setUserId(p.getUser() != null ? p.getUser().getId() : null);
 
-        if (p.getFullName() != null) {
-            resp.setFullName(p.getFullName());
-        } else if (p.getUser() != null) {
-            try {
-                resp.setFullName(p.getUser().getName());
-            } catch (Exception ignored) {}
-        }
+        resp.setFullName(
+                p.getFullName() != null
+                        ? p.getFullName()
+                        : (p.getUser() != null ? p.getUser().getName() : null)
+        );
 
         resp.setSkillCategory(p.getSkillCategory());
         resp.setExperienceYears(p.getExperienceYears());
@@ -166,36 +164,36 @@ public class WorkerProfileController {
 
         resp.setCreatedAt(p.getCreatedAt() != null ? p.getCreatedAt() : Instant.now());
 
-        try {
-            resp.setVideoUrls(p.getVideoUrls());
-        } catch (Exception ignored) {}
+        resp.setVideoUrls(p.getVideoUrls());
 
         return resp;
     }
 
     @GetMapping("/search")
     public ResponseEntity<?> search(
-            @RequestParam(name = "skill", required = false) String skill,
-            @RequestParam(name = "location", required = false) String location) {
+            @RequestParam(required = false) String skill,
+            @RequestParam(required = false) String location) {
 
-        List<WorkerProfileResponse> results = service.search(skill, location).stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(
+                service.search(skill, location)
+                        .stream()
+                        .map(this::toResponse)
+                        .collect(Collectors.toList())
+        );
     }
 
     @GetMapping("/filter")
     public ResponseEntity<?> filter(
-            @RequestParam(name = "skill", required = false) String skill,
-            @RequestParam(name = "minExp", required = false) Integer minExp,
-            @RequestParam(name = "maxRate", required = false) Double maxRate,
-            @RequestParam(name = "availability", required = false) String availability) {
+            @RequestParam(required = false) String skill,
+            @RequestParam(required = false) Integer minExp,
+            @RequestParam(required = false) Double maxRate,
+            @RequestParam(required = false) String availability) {
 
-        List<WorkerProfileResponse> results = service.filter(skill, minExp, maxRate, availability).stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(results);
+        return ResponseEntity.ok(
+                service.filter(skill, minExp, maxRate, availability)
+                        .stream()
+                        .map(this::toResponse)
+                        .collect(Collectors.toList())
+        );
     }
 }
