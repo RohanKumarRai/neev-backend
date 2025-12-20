@@ -213,8 +213,24 @@ public class JobRequestService {
         repo.save(job);
     }
 
+   
     // =====================================================
-    // ✅ WORKER — VIEW ASSIGNED JOBS
-    // =====================================================
-  
+// ✅ WORKER — VIEW ASSIGNED JOBS
+// =====================================================
+    public List<JobRequest> getJobsForWorker(String workerEmail) {
+
+        AppUser user = appUserRepo.findByEmail(workerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (user.getRole() != Role.ROLE_WORKER) {
+            throw new SecurityException("Only workers can view assigned jobs");
+        }
+
+        WorkerProfile profile = workerRepo.findByUserId(user.getId())
+                .orElseThrow(() -> new IllegalArgumentException("Worker profile not found"));
+
+        return repo.findByAssignedWorkerId(profile.getId());
+    }
+
+
 }
