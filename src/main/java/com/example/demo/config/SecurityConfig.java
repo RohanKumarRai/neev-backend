@@ -32,6 +32,7 @@ public class SecurityConfig {
                 "http://localhost:5173",
                 "http://127.0.0.1:5173",
                 "https://monopsy.vercel.app",
+                "https://localhost", // ⭐ ANDROID WEBVIEW
                 "https://neev-frontend.vercel.app"
         ));
 
