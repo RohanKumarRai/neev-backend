@@ -10,7 +10,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-
 import java.util.List;
 
 @RestController
@@ -30,7 +29,7 @@ public class JobRequestController {
     public ResponseEntity<?> createJob(@RequestBody CreateJobRequest req) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // ✅ FIXED
+        String email = auth.getName();
 
         JobRequest job = service.createJob(req, email);
         return ResponseEntity.ok(job);
@@ -43,7 +42,7 @@ public class JobRequestController {
     public ResponseEntity<?> getMyJobs() {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // ✅ FIXED
+        String email = auth.getName();
 
         return ResponseEntity.ok(service.getJobsByEmployer(email));
     }
@@ -73,7 +72,7 @@ public class JobRequestController {
     public ResponseEntity<List<JobApplicationResponse>> getApplications(@PathVariable Long id) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // ✅ FIXED
+        String email = auth.getName();
 
         return ResponseEntity.ok(service.getApplicationsForJob(id, email));
     }
@@ -86,7 +85,7 @@ public class JobRequestController {
                                    @RequestBody(required = false) String message) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String workerEmail = auth.getName(); // ✅ FIXED
+        String workerEmail = auth.getName();
 
         try {
             return ResponseEntity.ok(service.applyToJob(id, workerEmail, message));
@@ -106,7 +105,7 @@ public class JobRequestController {
     public ResponseEntity<?> accept(@PathVariable Long appId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // ✅ FIXED
+        String email = auth.getName();
 
         service.decideApplication(appId, true, email);
         return ResponseEntity.ok("Application accepted");
@@ -119,7 +118,7 @@ public class JobRequestController {
     public ResponseEntity<?> reject(@PathVariable Long appId) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // ✅ FIXED
+        String email = auth.getName();
 
         service.decideApplication(appId, false, email);
         return ResponseEntity.ok("Application rejected");
@@ -132,10 +131,23 @@ public class JobRequestController {
     public ResponseEntity<?> completeJob(@PathVariable Long id) {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // ✅ FIXED
+        String employerEmail = auth.getName();
 
-        service.completeJob(id, email);
-        return ResponseEntity.ok("Job completed");
+        service.completeJob(id, employerEmail);
+        return ResponseEntity.ok("Job completed by employer");
+    }
+
+    // =====================================================
+    // WORKER — COMPLETE ASSIGNED JOB
+    // =====================================================
+    @PostMapping("/{jobId}/worker-complete")
+    public ResponseEntity<?> workerCompleteJob(@PathVariable Long jobId,
+                                               Authentication authentication) {
+
+        String workerEmail = authentication.getName();
+        service.markJobCompleted(jobId, workerEmail);
+
+        return ResponseEntity.ok("Job marked as completed by worker");
     }
 
     // =====================================================
@@ -145,7 +157,7 @@ public class JobRequestController {
     public ResponseEntity<?> getAssignedJobs() {
 
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // ✅ FIXED
+        String email = auth.getName();
 
         return ResponseEntity.ok(service.getJobsForWorker(email));
     }

@@ -9,7 +9,6 @@ public class JobRequest {
     public enum Status {
         OPEN,
         ASSIGNED,
-        IN_PROGRESS,
         COMPLETED
     }
 
@@ -17,7 +16,7 @@ public class JobRequest {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ✅ Employer user ID (from JWT)
+    // Employer user ID
     private Long userId;
 
     private String title;
@@ -27,13 +26,13 @@ public class JobRequest {
 
     private String location;
 
-    // ✅ NEW FIELDS (PHASE 3 LOCKED)
-    private String category;       // Plumber, Electrician, etc.
-    private String jobType;        // FULL_TIME, PART_TIME, DAILY
-    private String salary;         // ₹800/day, ₹120/hour, ₹15000/month
-    private String contactPhone;   // Employer phone number
+    // Job details
+    private String category;
+    private String jobType;
+    private String salary;
+    private String contactPhone;
 
-    // ✅ MAP COORDINATES (PHASE 3)
+    // Map coordinates
     @Column(nullable = true)
     private Double latitude;
 
@@ -43,114 +42,64 @@ public class JobRequest {
     @Enumerated(EnumType.STRING)
     private Status status;
 
-    // ✅ Worker profile ID when assigned
+    // Assigned worker profile ID
     private Long assignedWorkerId;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
-    // ---------------- GETTERS ----------------
+    // ================= GETTERS =================
 
-    public Long getId() {
-        return id;
-    }
+    public Long getId() { return id; }
 
-    public Long getUserId() {
-        return userId;
-    }
+    public Long getUserId() { return userId; }
 
-    public String getTitle() {
-        return title;
-    }
+    public String getTitle() { return title; }
 
-    public String getDescription() {
-        return description;
-    }
+    public String getDescription() { return description; }
 
-    public String getLocation() {
-        return location;
-    }
+    public String getLocation() { return location; }
 
-    public String getCategory() {
-        return category;
-    }
+    public String getCategory() { return category; }
 
-    public String getJobType() {
-        return jobType;
-    }
+    public String getJobType() { return jobType; }
 
-    public String getSalary() {
-        return salary;
-    }
+    public String getSalary() { return salary; }
 
-    public String getContactPhone() {
-        return contactPhone;
-    }
+    public String getContactPhone() { return contactPhone; }
 
-    public Double getLatitude() {
-        return latitude;
-    }
+    public Double getLatitude() { return latitude; }
 
-    public Double getLongitude() {
-        return longitude;
-    }
+    public Double getLongitude() { return longitude; }
 
-    public Status getStatus() {
-        return status;
-    }
+    public Status getStatus() { return status; }
 
-    public Long getAssignedWorkerId() {
-        return assignedWorkerId;
-    }
+    public Long getAssignedWorkerId() { return assignedWorkerId; }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
+    public LocalDateTime getCreatedAt() { return createdAt; }
 
-    // ---------------- SETTERS ----------------
+    // ================= SETTERS =================
 
-    public void setUserId(Long userId) {
-        this.userId = userId;
-    }
+    public void setUserId(Long userId) { this.userId = userId; }
 
-    public void setTitle(String title) {
-        this.title = title;
-    }
+    public void setTitle(String title) { this.title = title; }
 
-    public void setDescription(String description) {
-        this.description = description;
-    }
+    public void setDescription(String description) { this.description = description; }
 
-    public void setLocation(String location) {
-        this.location = location;
-    }
+    public void setLocation(String location) { this.location = location; }
 
-    public void setCategory(String category) {
-        this.category = category;
-    }
+    public void setCategory(String category) { this.category = category; }
 
-    public void setJobType(String jobType) {
-        this.jobType = jobType;
-    }
+    public void setJobType(String jobType) { this.jobType = jobType; }
 
-    public void setSalary(String salary) {
-        this.salary = salary;
-    }
+    public void setSalary(String salary) { this.salary = salary; }
 
-    public void setContactPhone(String contactPhone) {
-        this.contactPhone = contactPhone;
-    }
+    public void setContactPhone(String contactPhone) { this.contactPhone = contactPhone; }
 
-    public void setLatitude(Double latitude) {
-        this.latitude = latitude;
-    }
+    public void setLatitude(Double latitude) { this.latitude = latitude; }
 
-    public void setLongitude(Double longitude) {
-        this.longitude = longitude;
-    }
+    public void setLongitude(Double longitude) { this.longitude = longitude; }
 
-    public void setStatus(Status status) {
-        this.status = status;
-    }
+    public void setStatus(Status status) { this.status = status; }
 
     public void setAssignedWorkerId(Long assignedWorkerId) {
         this.assignedWorkerId = assignedWorkerId;

@@ -4,6 +4,8 @@ import com.example.demo.dto.CreateJobRequest;
 import com.example.demo.dto.JobApplicationResponse;
 import com.example.demo.model.*;
 import com.example.demo.repository.*;
+
+import jakarta.transaction.Transactional;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -31,7 +33,7 @@ public class JobRequestService {
     }
 
     // =====================================================
-    // ✅ EMPLOYER CREATES JOB
+    // EMPLOYER — CREATE JOB
     // =====================================================
     public JobRequest createJob(CreateJobRequest req, String employerEmail) {
 
@@ -40,10 +42,6 @@ public class JobRequestService {
 
         if (employer.getRole() != Role.ROLE_EMPLOYER) {
             throw new SecurityException("Only employers can post jobs");
-        }
-
-        if (req.getTitle() == null || req.getTitle().isBlank()) {
-            throw new IllegalArgumentException("Job title is required");
         }
 
         JobRequest job = new JobRequest();
@@ -55,18 +53,15 @@ public class JobRequestService {
         job.setJobType(req.getJobType());
         job.setSalary(req.getSalary());
         job.setContactPhone(req.getContactPhone());
-
-        // ✅ MAP COORDINATES
         job.setLatitude(req.getLatitude());
         job.setLongitude(req.getLongitude());
-
         job.setStatus(JobRequest.Status.OPEN);
 
         return repo.save(job);
     }
 
     // =====================================================
-    // ✅ EMPLOYER — VIEW OWN JOBS
+    // EMPLOYER — VIEW OWN JOBS
     // =====================================================
     public List<JobRequest> getJobsByEmployer(String employerEmail) {
 
@@ -77,21 +72,21 @@ public class JobRequestService {
     }
 
     // =====================================================
-    // ✅ VIEW ALL JOBS
+    // VIEW ALL JOBS
     // =====================================================
     public List<JobRequest> listAll() {
         return repo.findAll();
     }
 
     // =====================================================
-    // ✅ VIEW SINGLE JOB
+    // VIEW SINGLE JOB
     // =====================================================
     public Optional<JobRequest> getById(Long id) {
         return repo.findById(id);
     }
 
     // =====================================================
-    // ✅ WORKER — APPLY TO JOB
+    // WORKER — APPLY TO JOB
     // =====================================================
     public JobApplication applyToJob(Long jobId, String workerEmail, String message) {
 
@@ -106,14 +101,14 @@ public class JobRequestService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if (user.getRole() != Role.ROLE_WORKER) {
-            throw new SecurityException("Only workers can apply to jobs");
+            throw new SecurityException("Only workers can apply");
         }
 
         WorkerProfile profile = workerRepo.findByUserId(user.getId())
                 .orElseThrow(() -> new IllegalArgumentException("Worker profile not found"));
 
         if (appRepo.existsByJobIdAndWorkerId(jobId, profile.getId())) {
-            throw new IllegalStateException("You have already applied to this job");
+            throw new IllegalStateException("Already applied");
         }
 
         JobApplication app = new JobApplication();
@@ -121,27 +116,11 @@ public class JobRequestService {
         app.setWorkerId(profile.getId());
         app.setMessage(message);
 
-        JobApplication saved = appRepo.save(app);
-
-        // 🔔 Notify Employer
-        try {
-            String msg = "New application from \"" + profile.getFullName() +
-                    "\" for job: " + job.getTitle();
-
-            notificationService.create(
-                    job.getUserId(),
-                    "JOB_APPLIED",
-                    msg,
-                    job.getId(),
-                    user.getId()
-            );
-        } catch (Exception ignored) {}
-
-        return saved;
+        return appRepo.save(app);
     }
 
     // =====================================================
-    // ✅ EMPLOYER — VIEW APPLICATIONS
+    // EMPLOYER — VIEW APPLICATIONS
     // =====================================================
     public List<JobApplicationResponse> getApplicationsForJob(Long jobId, String employerEmail) {
 
@@ -156,17 +135,14 @@ public class JobRequestService {
         }
 
         return appRepo.findByJobId(jobId).stream().map(app -> {
-
             WorkerProfile profile = workerRepo.findById(app.getWorkerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Worker profile missing"));
-
+                    .orElseThrow();
             return new JobApplicationResponse(app, profile);
-
         }).toList();
     }
 
     // =====================================================
-    // ✅ EMPLOYER — ACCEPT / REJECT APPLICATION
+    // EMPLOYER — ACCEPT / REJECT APPLICATION
     // =====================================================
     public void decideApplication(Long appId, boolean accept, String employerEmail) {
 
@@ -196,7 +172,7 @@ public class JobRequestService {
     }
 
     // =====================================================
-    // ✅ EMPLOYER — COMPLETE JOB
+    // EMPLOYER — COMPLETE JOB
     // =====================================================
     public void completeJob(Long jobId, String employerEmail) {
 
@@ -219,7 +195,42 @@ public class JobRequestService {
     }
 
     // =====================================================
-    // ✅ WORKER — VIEW ASSIGNED JOBS
+    // ✅ WORKER — MARK JOB COMPLETED (CORE FIX)
+    // =====================================================
+    @Transactional
+    public void markJobCompleted(Long jobId, String workerEmail) {
+
+        JobRequest job = repo.findById(jobId)
+                .orElseThrow(() -> new RuntimeException("Job not found"));
+
+        // ✅ Must be assigned
+        if (job.getStatus() != JobRequest.Status.ASSIGNED) {
+            throw new RuntimeException("Job is not assigned");
+        }
+
+        AppUser user = appUserRepo.findByEmail(workerEmail)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (user.getRole() != Role.ROLE_WORKER) {
+            throw new RuntimeException("Only workers can complete jobs");
+        }
+
+        WorkerProfile profile = workerRepo.findByUserId(user.getId())
+                .orElseThrow(() -> new RuntimeException("Worker profile not found"));
+
+        // ✅ Worker must match
+        if (job.getAssignedWorkerId() == null ||
+                !job.getAssignedWorkerId().equals(profile.getId())) {
+            throw new RuntimeException("Not authorized to complete this job");
+        }
+
+        // ✅ Mark completed
+        job.setStatus(JobRequest.Status.COMPLETED);
+        repo.save(job);
+    }
+
+    // =====================================================
+    // WORKER — VIEW ASSIGNED JOBS
     // =====================================================
     public List<JobRequest> getJobsForWorker(String workerEmail) {
 
@@ -227,7 +238,7 @@ public class JobRequestService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         if (user.getRole() != Role.ROLE_WORKER) {
-            throw new SecurityException("Only workers can view assigned jobs");
+            throw new SecurityException("Only workers allowed");
         }
 
         WorkerProfile profile = workerRepo.findByUserId(user.getId())
