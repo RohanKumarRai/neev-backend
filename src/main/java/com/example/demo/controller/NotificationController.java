@@ -1,8 +1,10 @@
 package com.example.demo.controller;
 
 import com.example.demo.model.Notification;
+import com.example.demo.repository.AppUserRepository;
 import com.example.demo.service.NotificationService;
-import org.springframework.http.ResponseEntity;
+
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -14,78 +16,82 @@ import java.util.Map;
 public class NotificationController {
 
     private final NotificationService service;
+    private final AppUserRepository userRepo;
 
-    public NotificationController(NotificationService service) {
+    public NotificationController(NotificationService service,
+                                  AppUserRepository userRepo) {
         this.service = service;
+        this.userRepo = userRepo;
     }
 
-    // SSE stream for user (keep connection open)
-    @GetMapping(value = "/stream/{userId}")
-    public SseEmitter stream(@PathVariable Long userId) {
-        return service.registerEmitter(userId);
+    // 🔐 Utility — get logged-in userId from JWT
+    private Long currentUserId(Authentication auth) {
+        return userRepo.findByEmail(auth.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"))
+                .getId();
     }
 
-    // List notifications for a user
-    @GetMapping("/{userId}")
-    public ResponseEntity<List<Notification>> list(@PathVariable Long userId) {
-        return ResponseEntity.ok(service.listForUser(userId));
+    // =====================================================
+    // ✅ GET ALL NOTIFICATIONS (LOGGED-IN USER)
+    // =====================================================
+    @GetMapping("/my")
+    public List<Notification> my(Authentication auth) {
+        return service.getForUser(currentUserId(auth));
     }
 
-    // Unread list
-    @GetMapping("/unread/{userId}")
-    public ResponseEntity<?> unread(@PathVariable Long userId) {
-        return ResponseEntity.ok(service.getUnread(userId));
+    // =====================================================
+    // ✅ GET UNREAD NOTIFICATIONS
+    // =====================================================
+    @GetMapping("/unread")
+    public List<Notification> unread(Authentication auth) {
+        return service.getUnread(currentUserId(auth));
     }
 
-    // Unread count
-    @GetMapping("/count/{userId}")
-    public ResponseEntity<?> count(@PathVariable Long userId) {
-        return ResponseEntity.ok(Map.of("unreadCount", service.countUnread(userId)));
+    // =====================================================
+    // ✅ GET UNREAD COUNT (BADGE)
+    // =====================================================
+    @GetMapping("/count")
+    public Map<String, Long> count(Authentication auth) {
+        return Map.of(
+                "unreadCount",
+                service.countUnread(currentUserId(auth))
+        );
     }
 
-    // Mark single read
+    // =====================================================
+    // ✅ MARK SINGLE NOTIFICATION AS READ
+    // =====================================================
     @PostMapping("/{id}/read")
-    public ResponseEntity<?> markRead(@PathVariable Long id) {
-        try {
-            Notification updated = service.markRead(id);
-            return ResponseEntity.ok(updated);
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.badRequest().body(ex.getMessage());
-        }
+    public Notification markRead(@PathVariable Long id) {
+        return service.markRead(id);
     }
 
-    // Mark all read for a user
-    @PostMapping("/read-all/{userId}")
-    public ResponseEntity<?> markAllRead(@PathVariable Long userId) {
-        int count = service.markAllRead(userId);
-        return ResponseEntity.ok(Map.of("markedRead", count));
+    // =====================================================
+    // ✅ MARK ALL AS READ
+    // =====================================================
+    @PostMapping("/read-all")
+    public Map<String, Integer> markAllRead(Authentication auth) {
+        int count = service.markAllRead(currentUserId(auth));
+        return Map.of("markedRead", count);
     }
 
-    // Summary: unread count + recent 10
-    @GetMapping("/summary/{userId}")
-    public ResponseEntity<?> summary(@PathVariable Long userId) {
-        var list = service.getForUser(userId).stream().limit(10).toList();
-        long unread = service.countUnread(userId);
-        return ResponseEntity.ok(Map.of("unreadCount", unread, "recent", list));
+    // =====================================================
+    // ✅ SUMMARY (UNREAD COUNT + RECENT 10)
+    // =====================================================
+    @GetMapping("/summary")
+    public Map<String, Object> summary(Authentication auth) {
+        Long uid = currentUserId(auth);
+        return Map.of(
+                "unreadCount", service.countUnread(uid),
+                "recent", service.getForUser(uid).stream().limit(10).toList()
+        );
     }
 
-    // Mark read endpoint kept for compat (if you used earlier)
-    @PostMapping("/test")
-    public ResponseEntity<?> createTest(@RequestBody Map<String, Object> body) {
-        try {
-            if (body == null || !body.containsKey("recipientUserId")) {
-                return ResponseEntity.badRequest().body("recipientUserId is required");
-            }
-            Long recipientUserId = Long.valueOf(body.get("recipientUserId").toString());
-            String message = body.getOrDefault("message", "Test notification").toString();
-            String type = body.getOrDefault("type", "TEST").toString();
-            Long jobId = body.get("jobId") == null ? null : Long.valueOf(body.get("jobId").toString());
-            Long actorUserId = body.get("actorUserId") == null ? null : Long.valueOf(body.get("actorUserId").toString());
-
-            Notification created = service.create(recipientUserId, type, message, jobId, actorUserId);
-            return ResponseEntity.ok(created);
-        } catch (Exception ex) {
-            return ResponseEntity.status(500).body("Failed to create notification: " + ex.getMessage());
-        }
+    // =====================================================
+    // ✅ SECURE SSE STREAM (LOGGED-IN USER ONLY)
+    // =====================================================
+    @GetMapping("/stream")
+    public SseEmitter stream(Authentication auth) {
+        return service.registerEmitter(currentUserId(auth));
     }
 }
