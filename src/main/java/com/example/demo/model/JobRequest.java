@@ -31,7 +31,14 @@ public class JobRequest {
     private String category;       // Plumber, Electrician, etc.
     private String jobType;        // FULL_TIME, PART_TIME, DAILY
     private String salary;         // ₹800/day, ₹120/hour, ₹15000/month
-    private String contactPhone;  // Employer phone number
+    private String contactPhone;   // Employer phone number
+
+    // ✅ MAP COORDINATES (PHASE 3)
+    @Column(nullable = true)
+    private Double latitude;
+
+    @Column(nullable = true)
+    private Double longitude;
 
     @Enumerated(EnumType.STRING)
     private Status status;
@@ -79,6 +86,14 @@ public class JobRequest {
         return contactPhone;
     }
 
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
     public Status getStatus() {
         return status;
     }
@@ -123,6 +138,14 @@ public class JobRequest {
 
     public void setContactPhone(String contactPhone) {
         this.contactPhone = contactPhone;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
     }
 
     public void setStatus(Status status) {

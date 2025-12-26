@@ -55,6 +55,11 @@ public class JobRequestService {
         job.setJobType(req.getJobType());
         job.setSalary(req.getSalary());
         job.setContactPhone(req.getContactPhone());
+
+        // ✅ MAP COORDINATES
+        job.setLatitude(req.getLatitude());
+        job.setLongitude(req.getLongitude());
+
         job.setStatus(JobRequest.Status.OPEN);
 
         return repo.save(job);
@@ -136,7 +141,7 @@ public class JobRequestService {
     }
 
     // =====================================================
-    // ✅ EMPLOYER — VIEW APPLICATIONS (YOUR EXACT STYLE)
+    // ✅ EMPLOYER — VIEW APPLICATIONS
     // =====================================================
     public List<JobApplicationResponse> getApplicationsForJob(Long jobId, String employerEmail) {
 
@@ -213,10 +218,9 @@ public class JobRequestService {
         repo.save(job);
     }
 
-   
     // =====================================================
-// ✅ WORKER — VIEW ASSIGNED JOBS
-// =====================================================
+    // ✅ WORKER — VIEW ASSIGNED JOBS
+    // =====================================================
     public List<JobRequest> getJobsForWorker(String workerEmail) {
 
         AppUser user = appUserRepo.findByEmail(workerEmail)
@@ -231,6 +235,4 @@ public class JobRequestService {
 
         return repo.findByAssignedWorkerId(profile.getId());
     }
-
-
 }

@@ -18,6 +18,10 @@ public class CreateJobRequest {
     // Employer contact number
     private String contactPhone;
 
+    // ✅ MAP COORDINATES
+    private Double latitude;
+    private Double longitude;
+
     // -------- GETTERS --------
 
     public String getTitle() {
@@ -48,6 +52,14 @@ public class CreateJobRequest {
         return contactPhone;
     }
 
+    public Double getLatitude() {
+        return latitude;
+    }
+
+    public Double getLongitude() {
+        return longitude;
+    }
+
     // -------- SETTERS --------
 
     public void setTitle(String title) {
@@ -76,5 +88,13 @@ public class CreateJobRequest {
 
     public void setContactPhone(String contactPhone) {
         this.contactPhone = contactPhone;
+    }
+
+    public void setLatitude(Double latitude) {
+        this.latitude = latitude;
+    }
+
+    public void setLongitude(Double longitude) {
+        this.longitude = longitude;
     }
 }
