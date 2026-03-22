@@ -20,6 +20,16 @@ import java.time.Instant;
 import java.util.List;
 import java.util.stream.Collectors;
 
+// ✅ CHANGES:
+//
+//  1. create() now passes auth.getName() (the logged-in email) directly to the service.
+//     WorkerProfileService.create() previously read the email from SecurityContextHolder
+//     internally — that was wrong (services shouldn't touch the security context).
+//     The email is now extracted here and passed as a parameter, exactly like
+//     JobRequestController → JobRequestService.createJob(req, email) already does.
+//
+//  2. All other methods unchanged.
+
 @RestController
 @RequestMapping("/api/workers")
 public class WorkerProfileController {
@@ -41,10 +51,12 @@ public class WorkerProfileController {
         return "controller-loaded";
     }
 
+    // ✅ FIX: extract email from auth here and pass to service
     @PostMapping
-    public ResponseEntity<?> create(@RequestBody CreateWorkerProfileRequest req) {
+    public ResponseEntity<?> create(@RequestBody CreateWorkerProfileRequest req,
+                                    Authentication auth) {
         try {
-            WorkerProfile p = service.create(req);
+            WorkerProfile p = service.create(req, auth.getName());
             return ResponseEntity.ok(toResponse(p));
         } catch (IllegalArgumentException ex) {
             return ResponseEntity.badRequest().body(ex.getMessage());
@@ -67,16 +79,9 @@ public class WorkerProfileController {
                 .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    // =====================================================
-    // ✅ GET LOGGED-IN WORKER PROFILE (JWT SAFE)
-    // =====================================================
     @GetMapping("/me")
-    public ResponseEntity<?> getMyProfile() {
-
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        String email = auth.getName(); // ✅ FIXED
-
-        AppUser user = appUserRepo.findByEmail(email)
+    public ResponseEntity<?> getMyProfile(Authentication auth) {
+        AppUser user = appUserRepo.findByEmail(auth.getName())
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
         return service.getByUserId(user.getId())
@@ -103,9 +108,6 @@ public class WorkerProfileController {
         }
     }
 
-    // =====================================================
-    // MEDIA UPLOAD
-    // =====================================================
     @PostMapping("/{id}/media")
     public ResponseEntity<?> uploadMedia(
             @PathVariable Long id,
@@ -133,50 +135,12 @@ public class WorkerProfileController {
         }
     }
 
-    // =====================================================
-    // RESPONSE MAPPER
-    // =====================================================
-    private WorkerProfileResponse toResponse(WorkerProfile p) {
-        if (p == null) return null;
-
-        WorkerProfileResponse resp = new WorkerProfileResponse();
-
-        resp.setId(p.getId());
-        resp.setUserId(p.getUser() != null ? p.getUser().getId() : null);
-
-        resp.setFullName(
-                p.getFullName() != null
-                        ? p.getFullName()
-                        : (p.getUser() != null ? p.getUser().getName() : null)
-        );
-
-        resp.setSkillCategory(p.getSkillCategory());
-        resp.setExperienceYears(p.getExperienceYears());
-        resp.setDailyRate(p.getDailyRate());
-        resp.setHourlyRate(p.getHourlyRate());
-        resp.setLocation(p.getLocation());
-        resp.setBio(p.getBio());
-        resp.setPhone(p.getPhone());
-        resp.setAvailability(p.getAvailability());
-
-        resp.setAudioBioUrl(p.getAudioBioUrl());
-        resp.setPhotoUrl(p.getPhotoUrl());
-
-        resp.setCreatedAt(p.getCreatedAt() != null ? p.getCreatedAt() : Instant.now());
-
-        resp.setVideoUrls(p.getVideoUrls());
-
-        return resp;
-    }
-
     @GetMapping("/search")
     public ResponseEntity<?> search(
             @RequestParam(required = false) String skill,
             @RequestParam(required = false) String location) {
-
         return ResponseEntity.ok(
-                service.search(skill, location)
-                        .stream()
+                service.search(skill, location).stream()
                         .map(this::toResponse)
                         .collect(Collectors.toList())
         );
@@ -188,12 +152,37 @@ public class WorkerProfileController {
             @RequestParam(required = false) Integer minExp,
             @RequestParam(required = false) Double maxRate,
             @RequestParam(required = false) String availability) {
-
         return ResponseEntity.ok(
-                service.filter(skill, minExp, maxRate, availability)
-                        .stream()
+                service.filter(skill, minExp, maxRate, availability).stream()
                         .map(this::toResponse)
                         .collect(Collectors.toList())
         );
+    }
+
+    // ── RESPONSE MAPPER ───────────────────────────────────────────────────────
+
+    private WorkerProfileResponse toResponse(WorkerProfile p) {
+        if (p == null) return null;
+
+        WorkerProfileResponse resp = new WorkerProfileResponse();
+        resp.setId(p.getId());
+        resp.setUserId(p.getUser() != null ? p.getUser().getId() : null);
+        resp.setFullName(
+                p.getFullName() != null ? p.getFullName()
+                        : (p.getUser() != null ? p.getUser().getName() : null)
+        );
+        resp.setSkillCategory(p.getSkillCategory());
+        resp.setExperienceYears(p.getExperienceYears());
+        resp.setDailyRate(p.getDailyRate());
+        resp.setHourlyRate(p.getHourlyRate());
+        resp.setLocation(p.getLocation());
+        resp.setBio(p.getBio());
+        resp.setPhone(p.getPhone());
+        resp.setAvailability(p.getAvailability());
+        resp.setAudioBioUrl(p.getAudioBioUrl());
+        resp.setPhotoUrl(p.getPhotoUrl());
+        resp.setCreatedAt(p.getCreatedAt() != null ? p.getCreatedAt() : Instant.now());
+        resp.setVideoUrls(p.getVideoUrls());
+        return resp;
     }
 }

@@ -9,20 +9,36 @@ import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+// ✅ CHANGES:
+//
+//  1. SSE emitter timeout changed from 0L (infinite) to 3 minutes (180_000L ms).
+//     A timeout of 0L means the server holds the connection open forever, even after
+//     the client disconnects without sending a close frame (e.g. browser tab closed,
+//     mobile app backgrounded, network drop). This causes dead emitters to accumulate
+//     in memory — on a busy server they eventually cause an OOM.
+//
+//     With a 3-minute timeout the client reconnects automatically (EventSource in the
+//     browser reconnects by default). 3 minutes is a balance between real-time feel
+//     and connection overhead; adjust via the SSE_TIMEOUT_MS constant if needed.
+//
+//  2. All other logic (create, markRead, markAllRead, pushToEmitters) is unchanged.
+
 @Service
 public class NotificationService {
 
-    private final NotificationRepository repo;
+    // ✅ FIX: 3-minute timeout instead of 0 (infinite).
+    //         Browser EventSource / mobile clients will reconnect automatically.
+    private static final long SSE_TIMEOUT_MS = 3 * 60 * 1_000L;
 
-    // SseEmitters per userId
+    private final NotificationRepository repo;
     private final Map<Long, List<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
     public NotificationService(NotificationRepository repo) {
         this.repo = repo;
     }
 
-    // Create notification (saves + pushes to SSE if present)
-    public Notification create(Long recipientUserId, String type, String message, Long jobId, Long actorUserId) {
+    public Notification create(Long recipientUserId, String type, String message,
+                               Long jobId, Long actorUserId) {
         Notification n = new Notification();
         n.setRecipientUserId(recipientUserId);
         n.setType(type);
@@ -32,19 +48,16 @@ public class NotificationService {
         n.setCreatedAt(Instant.now());
         n.setRead(false);
         Notification saved = repo.save(n);
-
-        // push to SSE subscribers if any
         pushToEmitters(recipientUserId, saved);
         return saved;
     }
 
-    // alias for controller naming
-    public List<Notification> listForUser(Long userId) {
+    public List<Notification> getForUser(Long userId) {
         return repo.findByRecipientUserIdOrderByCreatedAtDesc(userId);
     }
 
-    public List<Notification> getForUser(Long userId) {
-        return listForUser(userId);
+    public List<Notification> listForUser(Long userId) {
+        return getForUser(userId);
     }
 
     public List<Notification> getUnread(Long userId) {
@@ -56,7 +69,8 @@ public class NotificationService {
     }
 
     public Notification markRead(Long id) {
-        Notification n = repo.findById(id).orElseThrow(() -> new IllegalArgumentException("Notification not found"));
+        Notification n = repo.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Notification not found"));
         if (n.getRead() == null || !n.getRead()) {
             n.setRead(true);
             n.setReadAt(Instant.now());
@@ -66,7 +80,8 @@ public class NotificationService {
     }
 
     public int markAllRead(Long userId) {
-        List<Notification> unread = repo.findByRecipientUserIdAndReadFalseOrderByCreatedAtDesc(userId);
+        List<Notification> unread =
+                repo.findByRecipientUserIdAndReadFalseOrderByCreatedAtDesc(userId);
         unread.forEach(n -> {
             n.setRead(true);
             n.setReadAt(Instant.now());
@@ -75,23 +90,25 @@ public class NotificationService {
         return unread.size();
     }
 
-    // ---------- SSE wiring ----------
+    // ── SSE ───────────────────────────────────────────────────────────────────
+
     public SseEmitter registerEmitter(Long userId) {
-        SseEmitter emitter = new SseEmitter(0L); // no timeout
-        emitters.computeIfAbsent(userId, k -> Collections.synchronizedList(new ArrayList<>())).add(emitter);
+        // ✅ FIX: 3-minute timeout — prevents dead emitter accumulation
+        SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
+
+        emitters.computeIfAbsent(userId,
+                k -> Collections.synchronizedList(new ArrayList<>())).add(emitter);
 
         emitter.onCompletion(() -> removeEmitter(userId, emitter));
-        emitter.onTimeout(() -> removeEmitter(userId, emitter));
-        emitter.onError((ex) -> removeEmitter(userId, emitter));
+        emitter.onTimeout(()    -> removeEmitter(userId, emitter));
+        emitter.onError((ex)    -> removeEmitter(userId, emitter));
 
         return emitter;
     }
 
     private void removeEmitter(Long userId, SseEmitter emitter) {
         List<SseEmitter> list = emitters.get(userId);
-        if (list != null) {
-            list.remove(emitter);
-        }
+        if (list != null) list.remove(emitter);
     }
 
     private void pushToEmitters(Long userId, Notification n) {
@@ -100,7 +117,6 @@ public class NotificationService {
             try {
                 e.send(SseEmitter.event().name("notification").data(n));
             } catch (Exception ex) {
-                // remove broken emitter
                 removeEmitter(userId, e);
             }
         }
